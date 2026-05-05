@@ -9,9 +9,9 @@ defmodule FileCleaner do
   def clean_files do
     IO.puts("File cleaner started")
 
-    current_time = NaiveDateTime.utc_now()
-    IO.puts("current time UTC: #{inspect(current_time)}")
-    seven_days_ago = NaiveDateTime.utc_now() |> NaiveDateTime.add(-7, :day)
+    current_time = toLocalTime(NaiveDateTime.utc_now())
+    IO.puts("current time: #{inspect(current_time)}")
+    seven_days_ago = current_time |> NaiveDateTime.add(-7, :day)
 
     "config.conf"
     |> File.stream!()
@@ -26,10 +26,10 @@ defmodule FileCleaner do
 
         case File.stat(filename) do
           {:ok, stat} ->
-            {:ok, mtime} = NaiveDateTime.from_erl(stat.mtime)
+            mtime = toLocalTime(NaiveDateTime.from_erl!(stat.mtime))
 
             if NaiveDateTime.compare(mtime, seven_days_ago) === :lt do
-              IO.puts("Deleting old file #{filename} (Created at #{mtime} UTC)")
+              IO.puts("Deleting old file #{filename} (Created at #{mtime})")
             end
 
           {:error, reason} ->
@@ -37,5 +37,13 @@ defmodule FileCleaner do
         end
       end)
     end)
+  end
+
+  defp toLocalTime(time) do
+    local_time = NaiveDateTime.from_erl!(:calendar.local_time())
+    utc_time = NaiveDateTime.from_erl!(:calendar.universal_time())
+    offset = NaiveDateTime.diff(local_time, utc_time)
+    IO.puts("offset #{inspect(offset)}")
+    NaiveDateTime.add(time, offset)
   end
 end
